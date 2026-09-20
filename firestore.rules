@@ -28,9 +28,19 @@ service cloud.firestore {
     }
 
     // อ่านค่า role ของผู้ใช้ที่ล็อกอินอยู่ จากเอกสาร users/{uid} ของตัวเอง
-    // (เรียกได้เฉพาะตอน isSignedIn() เป็นจริงแล้วเท่านั้น ไม่งั้น request.auth.uid จะพังตอนไม่ได้ล็อกอิน)
+    //
+    // แก้ไข (ตรวจสอบความปลอดภัย): เดิมเรียก get(...).data.role ตรง ๆ ซึ่งถ้าเอกสาร
+    // users/{uid} "ไม่มีอยู่จริง" (เช่น สมัครสมาชิกแล้ว createUserDoc เขียนไม่สำเร็จ หรือ
+    // บัญชีถูกสร้างจาก Firebase Console ตรง ๆ) get() จะคืนค่า null แล้ว .data จะทำให้
+    // การประเมินกฎ "error" ทั้งนิพจน์ — ไม่ใช่แค่ได้ค่า false เฉย ๆ ซึ่งอาจลาม
+    // ไปปฏิเสธการอ่านที่ควรอนุญาต (เช่น employee ที่ query ใบลาของตัวเอง แล้วต้องประเมิน
+    // isStaff() ในกิ่ง || ด้วย) จึงเช็ค exists() ก่อน และใช้ .data.get("role", "")
+    // เผื่อกรณีเอกสารมีอยู่แต่ไม่มี field role — ทุกกรณีผิดปกติจะได้ค่า "" = ไม่ใช่ staff
+    // (fail closed แบบเงียบ ๆ ไม่ error)
     function myRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+             ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("role", "")
+             : "";
     }
 
     // เป็น manager หรือ hr — มีสิทธิ์เห็น/พิจารณาใบลาของคนอื่นได้ (ใช้ && ลำดับนี้เพื่อให้
@@ -44,6 +54,22 @@ service cloud.firestore {
       return isSignedIn() && myRole() == "hr";
     }
 
+    // มีสิทธิ์เห็นใบลา leaveRequests/{reqId} หรือไม่ — ใช้กับ subcollection approvals
+    // ซึ่งไม่ได้รับสิทธิ์ต่อจากเอกสารแม่ จึงต้องไปอ่านเอกสารแม่มาตัดสินเอง
+    //
+    // แก้ไข (ตรวจสอบความปลอดภัย) 2 จุดจากของเดิมที่เขียนแทรกไว้ในกฎ approvals โดยตรง:
+    //  1) สลับให้เช็ค isStaff() ก่อน — ของเดิมเรียก get(ใบลาแม่) เป็นเงื่อนไขแรกเสมอ
+    //     ถ้าใบลาแม่ถูกลบไปแล้ว (Firestore ลบเอกสารแม่แล้ว subcollection ยังค้างอยู่
+    //     ไม่ได้ถูกลบตามไปด้วย) get() จะคืน null แล้ว .data ทำให้การประเมินกฎ error
+    //     ตั้งแต่กิ่งแรก manager/hr เลยอ่านความเห็นที่ค้างอยู่ไม่ได้ทั้งที่ควรได้
+    //  2) ใส่ exists() และ .data.get("requesterId", "") กันกรณีเอกสารแม่ไม่มีอยู่ /
+    //     ไม่มี field requesterId ให้ได้ค่า "" (ไม่ตรงกับ uid ของใคร = ปฏิเสธ) แทนการ error
+    function canSeeRequest(reqId) {
+      return isStaff()
+             || (exists(/databases/$(database)/documents/leaveRequests/$(reqId))
+                 && get(/databases/$(database)/documents/leaveRequests/$(reqId)).data.get("requesterId", "") == request.auth.uid);
+    }
+
     // ── users/{uid} ────────────────────────────────────────────
     match /users/{uid} {
       // อ่าน: เจ้าของอ่านเอกสารตัวเองได้เสมอ / manager กับ hr อ่านของใครก็ได้
@@ -53,12 +79,21 @@ service cloud.firestore {
       // สร้าง: สร้างได้เฉพาะเอกสารของตัวเอง (uid เอกสารต้องตรงกับ uid ที่ล็อกอินอยู่)
       // และ role ที่ส่งมาต้องเป็น "employee" เท่านั้น — กันไม่ให้ใครสมัครสมาชิกแล้ว
       // ตั้งตัวเองเป็น manager/hr ตั้งแต่ตอนสมัคร
+      // เพิ่ม hasOnly(...) (ตรวจสอบความปลอดภัย): จำกัดให้เขียนได้เฉพาะ 3 field ตาม
+      // โครงสร้างข้อมูลที่ตกลงกันไว้ กันไม่ให้ใครแอบยัด field แปลกปลอมเข้ามาในเอกสาร
+      // ผู้ใช้ของตัวเอง (js/signup.js เขียนแค่ name/email/role อยู่แล้ว seed ก็เช่นกัน)
       allow create: if isSignedIn() && request.auth.uid == uid
-                    && request.resource.data.role == "employee";
+                    && request.resource.data.role == "employee"
+                    && request.resource.data.keys().hasOnly(["name", "email", "role"]);
 
       // แก้ไข: มีแค่ hr เท่านั้นที่แก้เอกสารผู้ใช้ (รวมถึงเปลี่ยน role) ได้
       // (แอปนี้ไม่มีฟีเจอร์ให้ผู้ใช้แก้โปรไฟล์ตัวเอง จึงไม่ต้องเปิดสิทธิ์ update ให้เจ้าของเอกสาร)
-      allow update: if isHr();
+      //
+      // เพิ่มเงื่อนไข role (ตรวจสอบความปลอดภัย): เดิม hr ตั้ง role เป็นข้อความอะไรก็ได้
+      // (เช่น "superadmin") ซึ่งหลุดออกนอกค่าที่ระบบรู้จัก 3 ค่า ทำให้ผู้ใช้คนนั้นกลาย
+      // เป็นสถานะกำกวม — บังคับให้ค่าใหม่ต้องอยู่ใน 3 ค่าที่ถูกต้องเท่านั้น
+      allow update: if isHr()
+                    && request.resource.data.role in ["employee", "manager", "hr"];
 
       // ลบ: ไม่เปิดให้ลบเอกสารผู้ใช้จาก client เลย (ไม่มีฟีเจอร์นี้ในสเปก)
       allow delete: if false;
@@ -68,6 +103,13 @@ service cloud.firestore {
     match /leaveRequests/{id} {
       // อ่าน: เจ้าของใบลาอ่านใบของตัวเองได้ / manager กับ hr อ่านใบของใครก็ได้
       // -> employee คนอื่นที่ไม่ใช่เจ้าของใบ อ่านไม่ได้เด็ดขาด (กันเห็นใบลาเพื่อนร่วมงาน)
+      //
+      // ⚠️ ห้ามแก้รูปประโยคบรรทัดล่างนี้ (ตรวจสอบความปลอดภัยแล้ว จงใจปล่อยไว้แบบเดิม):
+      // ต้องเขียนเป็น `resource.data.requesterId == request.auth.uid` ตรง ๆ และต้องอยู่
+      // เป็นกิ่งซ้ายของ || เท่านั้น เพราะกฎนี้ถูกใช้กับคิวรีแบบ list ด้วย
+      // (listLeaveRequests ใน js/db.js) ซึ่ง Firestore ต้องพิสูจน์ล่วงหน้าจาก where() ของ
+      // คิวรีเองว่ากฎเป็นจริงทุกแถว — ถ้าเปลี่ยนไปใช้ .data.get("requesterId", "") หรือ
+      // สลับลำดับกิ่ง อาจทำให้ Firestore พิสูจน์ไม่ได้แล้วปฏิเสธทั้งคิวรีของ employee
       allow read: if isSignedIn()
                   && (resource.data.requesterId == request.auth.uid || isStaff());
 
@@ -98,16 +140,18 @@ service cloud.firestore {
       // ต้องเขียนกฎแยกต่างหากที่นี่ ถึงจะมีผล
       match /approvals/{approvalId} {
         // อ่าน: ใครก็ตามที่มีสิทธิ์อ่านใบลาแม่ได้ (เจ้าของใบ หรือ manager/hr) อ่านความเห็นได้
-        allow read: if isSignedIn()
-                    && (get(/databases/$(database)/documents/leaveRequests/$(id)).data.requesterId == request.auth.uid
-                        || isStaff());
+        allow read: if isSignedIn() && canSeeRequest(id);
 
         // สร้าง: เจ้าของใบลาแม่ หรือ manager/hr เขียนความเห็นได้ และ authorId ในความเห็น
         // ต้องตรงกับ uid ของคนที่ล็อกอินอยู่จริงเสมอ (ห้ามปลอมชื่อคนอื่นเป็นผู้เขียนความเห็น)
+        //
+        // ข้อจำกัดที่รู้อยู่ (ไม่ได้แก้ในไฟล์นี้): authorName เป็นข้อความอิสระ กฎไม่ได้บังคับ
+        // ให้ตรงกับชื่อจริงใน users/{uid} — ผู้ใช้จึงยังโพสต์ความเห็นโดยตั้งชื่อแสดงผล
+        // เป็นชื่อคนอื่นได้ (authorId ยังถูกต้องเสมอ แต่หน้าจอแสดง authorName)
+        // การบังคับต้องแก้ฝั่ง client ด้วย (js/auth.js มี fallback ใช้อีเมลแทนชื่อ) จึงไม่แก้ที่นี่
         allow create: if isSignedIn()
                       && request.resource.data.authorId == request.auth.uid
-                      && (get(/databases/$(database)/documents/leaveRequests/$(id)).data.requesterId == request.auth.uid
-                          || isStaff());
+                      && canSeeRequest(id);
 
         // แก้ไข/ลบ: ไม่อนุญาตให้ใครทำเลย (ความเห็นที่โพสต์แล้วแก้ไม่ได้ ลบไม่ได้ ตามข้อกำหนด)
         allow update: if false;
@@ -124,7 +168,15 @@ service cloud.firestore {
       allow create, update, delete: if isHr();
     }
 
-    // ── ปิดกั้นทุกอย่างที่ไม่ได้ระบุไว้ข้างบนโดยปริยาย (deny by default) ──
+    // ── บล็อกนี้ "ไม่ได้ทำอะไรเลย" — เก็บไว้เพื่อสื่อเจตนาเท่านั้น ──
+    //
+    // ⚠️ อย่าเข้าใจผิด: Firestore รวมผลของทุก match ที่ตรง path ด้วย OR ไม่ใช่ AND
+    // — บล็อกที่เขียน "if false" จึงไม่สามารถ "ยกเลิก" สิทธิ์ที่กฎข้างบนอนุญาตไว้แล้วได้เลย
+    // และในทางกลับกัน path ไหนที่ไม่มีกฎข้างบนรองรับ Firestore ก็ปฏิเสธให้อยู่แล้วโดยปริยาย
+    // (deny by default) โดยไม่ต้องมีบล็อกนี้
+    //
+    // สรุป: บล็อกนี้เป็นแค่คำอธิบายเจตนา ห้ามเพิ่มกฎใหม่ไว้ใต้บล็อกนี้แล้วคิดว่า
+    // บล็อกนี้จะช่วยกันให้ และห้ามอ่านบล็อกนี้ว่าเป็น "ตาข่ายกันพลาด" ของกฎข้างบน
     match /{document=**} {
       allow read, write: if false;
     }

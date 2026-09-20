@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { db, firebaseNotConfigured } from "../js/firebase.js";
-import { showConfigWarning } from "../js/nav.js";
+import { showConfigWarning } from "../js/util.js";   // ห้าม import จาก nav.js — จะไปรัน route guard ใน /seed/ โดยไม่ตั้งใจ
 import {
   doc, setDoc, collection
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";

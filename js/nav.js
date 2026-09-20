@@ -12,13 +12,23 @@
 
 import { currentUserProfile, signOutUser } from "./auth.js";
 import { hide, show } from "./util.js";
+export { showConfigWarning } from "./util.js";   // re-export ไว้เพื่อความเข้ากันได้ย้อนหลัง
 
-var หน้าที่ไม่ต้องล็อกอิน = ["login.html", "signup.html"];
+// เทียบชื่อหน้าแบบ "ตัด .html ทิ้งก่อนเสมอ" เพราะเซิร์ฟเวอร์ static ที่ใช้ (serve/serve-handler)
+// เปิด cleanUrls เป็นค่าเริ่มต้น แปลว่า /login.html จะถูก 301 ไปเป็น /login
+// ถ้าเทียบกับสตริง "login.html" ตรง ๆ เงื่อนไขยกเว้นจะไม่มีวันเป็นจริง → guard เด้งไป login.html
+// → เซิร์ฟเวอร์ตัด .html อีก → วนลูปไม่รู้จบจนแท็บค้าง (เคยเกิดจริง ทดสอบเจอ 2026-09-20)
+var หน้าที่ไม่ต้องล็อกอิน = ["login", "signup"];
+
+function ชื่อหน้า(ที่อยู่) {
+  var ส่วนท้าย = String(ที่อยู่ || "").split("?")[0].split("#")[0].split("/").pop();
+  return ส่วนท้าย.replace(/\.html$/, "") || "index";
+}
 
 (function () {
-  var หน้าปัจจุบัน = location.pathname.split("/").pop() || "index.html";
+  var หน้าปัจจุบัน = ชื่อหน้า(location.pathname);
   document.querySelectorAll("header.navbar a[href]").forEach(function (ลิงก์) {
-    if (ลิงก์.getAttribute("href") === หน้าปัจจุบัน) {
+    if (ชื่อหน้า(ลิงก์.getAttribute("href")) === หน้าปัจจุบัน) {
       ลิงก์.classList.add("active");
     }
   });
@@ -64,15 +74,4 @@ async function ตั้งค่าUIผู้ใช้และคุมสิ
   }
 }
 
-// แถบเตือนสีเหลือง ใช้ตอนที่ยังไม่ได้ตั้งค่า Firebase (js/firebase-config.js ยังเป็น placeholder)
-// สคริปต์ของหน้าอื่นเรียกใช้ผ่าน: import { showConfigWarning } from "./nav.js";
-export function showConfigWarning(ข้อความ) {
-  var กล่อง = document.createElement("div");
-  กล่อง.className = "alert alert-warn";
-  กล่อง.innerHTML =
-    "⚠️ <strong>ยังไม่ได้ตั้งค่า Firebase</strong> — " +
-    (ข้อความ || "หน้านี้จึงยังไม่ได้อ่านข้อมูลจากฐานข้อมูลจริง") +
-    "<br>วิธีตั้งค่า: เปิดไฟล์ js/firebase-config.js แล้วใส่ค่าที่คัดลอกมาจาก Firebase Console แทนข้อความ placeholder";
-  var ที่วาง = document.querySelector(".container") || document.body;
-  if (ที่วาง) ที่วาง.insertBefore(กล่อง, ที่วาง.firstChild);
-}
+// showConfigWarning ย้ายไปอยู่ที่ js/util.js แล้ว (ดูเหตุผลในคอมเมนต์หัวไฟล์นั้น)

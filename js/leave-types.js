@@ -6,7 +6,8 @@ import { firebaseNotConfigured } from "./firebase.js";
 import {
   listLeaveTypes, createLeaveType, updateLeaveType, deleteLeaveType, FirebaseNotConfiguredError
 } from "./db.js";
-import { showConfigWarning } from "./nav.js";
+import { showConfigWarning } from "./util.js";
+import { currentUserProfile } from "./auth.js";
 import { esc, hide, show, ข้อความError } from "./util.js";
 
 (function () {
@@ -19,6 +20,11 @@ import { esc, hide, show, ข้อความError } from "./util.js";
 
   var รายการ = [];
 
+  // เฉพาะฝ่ายบุคคล (hr) เท่านั้นที่แก้ประเภทการลาได้ — firestore.rules บังคับข้อนี้ฝั่งเซิร์ฟเวอร์อยู่แล้ว
+  // แต่ถ้า UI ไม่กั้นด้วย employee/manager จะกดปุ่มได้แล้วไปเจอ PERMISSION_DENIED เป็น alert
+  // ซึ่งดูเหมือนระบบพัง ทั้งที่จริงคือไม่มีสิทธิ์ จึงปิดปุ่มไว้ตั้งแต่แรกพร้อมบอกเหตุผล
+  var เป็นฝ่ายบุคคล = false;
+
   init();
 
   async function init() {
@@ -28,8 +34,25 @@ import { esc, hide, show, ข้อความError } from "./util.js";
       return;
     }
 
+    var โปรไฟล์ = await currentUserProfile();
+    เป็นฝ่ายบุคคล = !!โปรไฟล์ && โปรไฟล์.role === "hr";
+
+    if (!เป็นฝ่ายบุคคล) {
+      if (btnAdd) btnAdd.disabled = true;
+      if (elNameInput) elNameInput.disabled = true;
+      แสดงข้อความไม่มีสิทธิ์();
+    }
+
     await โหลดใหม่();
-    if (btnAdd) btnAdd.addEventListener("click", เพิ่มประเภท);
+    if (เป็นฝ่ายบุคคล && btnAdd) btnAdd.addEventListener("click", เพิ่มประเภท);
+  }
+
+  function แสดงข้อความไม่มีสิทธิ์() {
+    var กล่อง = document.createElement("div");
+    กล่อง.className = "alert alert-warn";
+    กล่อง.textContent = "หน้านี้ดูได้อย่างเดียว — เฉพาะฝ่ายบุคคลเท่านั้นที่เพิ่ม แก้ไข หรือลบประเภทการลาได้";
+    var ที่วาง = document.querySelector(".container") || document.body;
+    if (ที่วาง) ที่วาง.insertBefore(กล่อง, ที่วาง.firstChild);
   }
 
   async function โหลดใหม่() {
@@ -49,12 +72,15 @@ import { esc, hide, show, ข้อความError } from "./util.js";
     }
     hide(elEmpty);
 
+    var ปิดปุ่ม = เป็นฝ่ายบุคคล ? "" : " disabled";
     elBody.innerHTML = รายการ.map(function (ประเภท) {
       return "<tr><td>" + esc(ประเภท.name) + "</td><td>" +
-        '<button type="button" class="btn-ghost" data-edit="' + esc(ประเภท.id) + '">แก้ไข</button> ' +
-        '<button type="button" class="btn-danger" data-del="' + esc(ประเภท.id) + '">ลบ</button>' +
+        '<button type="button" class="btn-ghost" data-edit="' + esc(ประเภท.id) + '"' + ปิดปุ่ม + ">แก้ไข</button> " +
+        '<button type="button" class="btn-danger" data-del="' + esc(ประเภท.id) + '"' + ปิดปุ่ม + ">ลบ</button>" +
         "</td></tr>";
     }).join("");
+
+    if (!เป็นฝ่ายบุคคล) return;   // ไม่ผูก event ให้ปุ่มที่ปิดไว้
 
     elBody.querySelectorAll("[data-edit]").forEach(function (ปุ่ม) {
       ปุ่ม.addEventListener("click", function () { แก้ประเภท(ปุ่ม.dataset.edit); });

@@ -168,14 +168,42 @@ async function อ่านด้วยสิทธิ์ผู้ใช้ป�
   return await page.evaluate(async (เส้นทาง) => {
     const { auth } = await import("/js/firebase.js");
     const { firebaseConfig } = await import("/js/firebase-config.js");
-    if (!auth || !auth.currentUser) return { http: 0, status: "ยังไม่ได้ล็อกอิน" };
-    const token = await auth.currentUser.getIdToken();
+    if (!auth) return { http: 0, status: "ยังไม่ได้ตั้งค่า Firebase" };
+    // Firebase Auth กู้สถานะล็อกอินแบบ async — ตอนหน้าเพิ่งโหลด auth.currentUser
+    // ยังเป็น null อยู่ชั่วครู่ ทั้งที่ผู้ใช้ล็อกอินค้างอยู่จริง ต้องรอสถานะแรกก่อนเสมอ
+    const { onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+    const ผู้ใช้ = auth.currentUser || await new Promise((resolve) => {
+      const เลิกฟัง = onAuthStateChanged(auth, (u) => { เลิกฟัง(); resolve(u); });
+    });
+    if (!ผู้ใช้) return { http: 0, status: "ยังไม่ได้ล็อกอิน" };
+    const token = await ผู้ใช้.getIdToken();
     const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/${เส้นทาง}`;
     const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
     const j = await r.json().catch(() => ({}));
-    return { http: r.status, status: j.error ? j.error.status : "OK", uid: auth.currentUser.uid };
+    return { http: r.status, status: j.error ? j.error.status : "OK", uid: ผู้ใช้.uid };
   }, เส้นทาง);
 }
 
 module.exports.อ่านแบบไม่ล็อกอิน = อ่านแบบไม่ล็อกอิน;
 module.exports.อ่านด้วยสิทธิ์ผู้ใช้ปัจจุบัน = อ่านด้วยสิทธิ์ผู้ใช้ปัจจุบัน;
+
+// ── รอจนหน้ารายละเอียด "ตัดสินใจเสร็จ" ───────────────────────
+// ห้ามใช้ waitForLoadState("networkidle") กับหน้าที่ต่อ Firebase
+// เพราะ Firebase เปิดการเชื่อมต่อค้างไว้ฟังข้อมูลตลอดเวลา networkidle จึงไม่เกิดเลย
+// ต้องรอผลลัพธ์อย่างใดอย่างหนึ่งแทน: โหลดข้อมูลได้ / ขึ้น error / ถูกเด้งออกจากหน้า
+async function รอหน้ารายละเอียดนิ่ง(page, เวลารอ) {
+  try {
+    await page.waitForFunction(() => {
+      if (!location.pathname.includes("leave-request-detail")) return true;
+      const t = document.getElementById("d-title");
+      if (t && t.textContent.trim()) return true;
+      if (document.querySelector(".alert-error")) return true;
+      return false;
+    }, null, { timeout: เวลารอ || 15000 });
+  } catch (e) {
+    // ครบเวลาแล้วหน้ายังไม่แสดงอะไรเลย = เปิดใบนั้นไม่ได้
+    // ปล่อยให้ assertion ข้างนอกเป็นคนตัดสิน ไม่ throw ทิ้งตรงนี้
+  }
+}
+
+module.exports.รอหน้ารายละเอียดนิ่ง = รอหน้ารายละเอียดนิ่ง;

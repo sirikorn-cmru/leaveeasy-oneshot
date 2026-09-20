@@ -46,7 +46,7 @@ test.describe("เคสที่ 5 — เปิดใบลาของผู�
 
     await test.step("ขั้น 4 — เปิด URL ใบลาของคนแรกตรง ๆ ต้องไม่เห็นเนื้อหาใบนั้น", async () => {
       await page.goto(`/leave-request-detail.html?id=${encodeURIComponent(idใบของคนแรก)}`);
-      await page.waitForLoadState("networkidle");
+      await H.รอหน้ารายละเอียดนิ่ง(page);
       const เนื้อหน้า = await page.locator("body").textContent();
       expect(เนื้อหน้า, "เห็นหัวข้อใบลาของคนอื่นบนหน้าจอ").not.toContain(หัวข้อใบของคนแรก);
     });

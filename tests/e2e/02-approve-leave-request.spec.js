@@ -85,13 +85,24 @@ test.describe("เคสที่ 2 — กดอนุมัติแล้ว�
       }
     });
 
-    await test.step("ขั้น 8 — ล็อกอินเป็น employee แล้วต้องกดอนุมัติไม่ได้", async () => {
+    await test.step("ขั้น 8 — ล็อกอินเป็น employee แล้วต้องกดอนุมัติใบของตัวเองไม่ได้", async () => {
       await H.ออกจากระบบ(page);
       await H.ล็อกอิน(page, "employee");
-      await page.goto(`/leave-request-detail.html?id=${encodeURIComponent(idใบ)}`);
-      await page.waitForLoadState("networkidle");
-      // ถ้าเปิดได้ ปุ่มต้องกดไม่ได้ · ถ้าเปิดไม่ได้เลย (ถูก Rules กัน) ก็ถือว่าผ่านเช่นกัน
-      expect(await ปุ่มอนุมัติกดได้ไหม(page)).toBe(false);
+
+      // เปิด "ใบของตัวเอง" ไม่ใช่ใบที่ manager เลือกไว้ในขั้น 1 เพราะ manager เห็นทุกใบ
+      // ใบนั้นอาจเป็นของคนอื่น พอ employee เปิดจะโดน Rules ปฏิเสธแล้วเด้งออก
+      // ซึ่งเป็นคนละเรื่องกับที่ข้อนี้ต้องการพิสูจน์ (เจ้าของใบเองก็เปลี่ยนสถานะไม่ได้)
+      await page.goto("/leave-requests.html");
+      await page.waitForSelector("#leave-list-body tr[data-id], #leave-list-empty:not([hidden])");
+      const ใบของตัวเอง = page.locator("#leave-list-body tr[data-id]").first();
+      test.skip((await ใบของตัวเอง.count()) === 0, "บัญชี employee ไม่มีใบลาของตัวเองให้เปิด");
+
+      await ใบของตัวเอง.click();
+      await page.waitForURL(/leave-request-detail/, { timeout: 20_000 });
+      await expect(page.locator("#d-title")).not.toBeEmpty({ timeout: 20_000 });
+
+      await expect(page.locator("#btn-approve")).toBeDisabled();
+      await expect(page.locator("#btn-reject")).toBeDisabled();
     });
   });
 });

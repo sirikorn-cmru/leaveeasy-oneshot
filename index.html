@@ -5,10 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LeaveEasy ระบบขอลาออนไลน์</title>
   <link rel="stylesheet" href="css/style.css">
-  <script src="js/nav.js" defer></script>
+  <script type="module" src="js/nav.js"></script>
 </head>
 <body>
-  <div id="nav"></div>
+  <header class="navbar">
+    <div class="brand">LeaveEasy</div>
+    <a href="index.html">หน้าแรก</a>
+    <a href="leave-requests.html">รายการใบลา</a>
+    <a href="new-leave-request.html">ยื่นใบลาใหม่</a>
+    <a href="leave-types.html">จัดการประเภท</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <div class="nav-user">
+      <span id="nav-user"></span>
+      <button id="btn-logout" hidden>ออกจากระบบ</button>
+      <a id="nav-login" href="login.html">เข้าสู่ระบบ</a>
+    </div>
+  </header>
 
   <div class="container">
     <h1>LeaveEasy ระบบขอลาออนไลน์</h1>

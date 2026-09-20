@@ -1,0 +1,132 @@
+// ─────────────────────────────────────────────────────────────
+// firestore.rules — Security Rules ของ LeaveEasy
+//
+// โครงสร้างข้อมูลอ้างอิงจาก js/db.js:
+//   users/{uid}
+//   leaveTypes/{id}
+//   leaveRequests/{id}
+//   leaveRequests/{id}/approvals/{approvalId}   (subcollection — ไม่รับสิทธิ์ต่อจากเอกสารแม่)
+//
+// role ของผู้ใช้ (เก็บที่ users/{uid}.role) มีได้ 3 ค่าเท่านั้น: "employee" / "manager" / "hr"
+//
+// หมายเหตุ: ไฟล์นี้ยังไม่ได้ deploy จริง ต้องให้คนตรวจสอบก่อนใน Firebase Console
+// (Rules Playground) — ดูวิธีทดสอบใน firestore.rules.md
+// ─────────────────────────────────────────────────────────────
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────
+
+    // มีคนล็อกอินอยู่หรือไม่ — เป็น "ประตูนอกสุด" ที่ทุกกฎด้านล่างต้องผ่านก่อนเสมอ
+    // (Firestore ไม่มีวิธีใส่เงื่อนไขนี้แค่ครั้งเดียวแล้วให้ทุก match ด้านล่างสืบทอดอัตโนมัติ
+    //  จึงต้องเรียก isSignedIn() ไว้ในทุก allow ด้านล่าง — ไม่มี allow ไหนละเว้นเงื่อนไขนี้)
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // อ่านค่า role ของผู้ใช้ที่ล็อกอินอยู่ จากเอกสาร users/{uid} ของตัวเอง
+    // (เรียกได้เฉพาะตอน isSignedIn() เป็นจริงแล้วเท่านั้น ไม่งั้น request.auth.uid จะพังตอนไม่ได้ล็อกอิน)
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // เป็น manager หรือ hr — มีสิทธิ์เห็น/พิจารณาใบลาของคนอื่นได้ (ใช้ && ลำดับนี้เพื่อให้
+    // isSignedIn() เช็คก่อนเสมอ ป้องกัน myRole() ถูกเรียกตอนยังไม่ได้ล็อกอิน)
+    function isStaff() {
+      return isSignedIn() && myRole() in ["manager", "hr"];
+    }
+
+    // เป็น hr เท่านั้น — สิทธิ์สูงสุด (เปลี่ยน role คน / จัดการประเภทการลา)
+    function isHr() {
+      return isSignedIn() && myRole() == "hr";
+    }
+
+    // ── users/{uid} ────────────────────────────────────────────
+    match /users/{uid} {
+      // อ่าน: เจ้าของอ่านเอกสารตัวเองได้เสมอ / manager กับ hr อ่านของใครก็ได้
+      // (ต้องใช้แสดงชื่อผู้ใช้อื่นในหน้าพิจารณาใบลา และเช็คสิทธิ์)
+      allow read: if isSignedIn() && (request.auth.uid == uid || isStaff());
+
+      // สร้าง: สร้างได้เฉพาะเอกสารของตัวเอง (uid เอกสารต้องตรงกับ uid ที่ล็อกอินอยู่)
+      // และ role ที่ส่งมาต้องเป็น "employee" เท่านั้น — กันไม่ให้ใครสมัครสมาชิกแล้ว
+      // ตั้งตัวเองเป็น manager/hr ตั้งแต่ตอนสมัคร
+      allow create: if isSignedIn() && request.auth.uid == uid
+                    && request.resource.data.role == "employee";
+
+      // แก้ไข: มีแค่ hr เท่านั้นที่แก้เอกสารผู้ใช้ (รวมถึงเปลี่ยน role) ได้
+      // (แอปนี้ไม่มีฟีเจอร์ให้ผู้ใช้แก้โปรไฟล์ตัวเอง จึงไม่ต้องเปิดสิทธิ์ update ให้เจ้าของเอกสาร)
+      allow update: if isHr();
+
+      // ลบ: ไม่เปิดให้ลบเอกสารผู้ใช้จาก client เลย (ไม่มีฟีเจอร์นี้ในสเปก)
+      allow delete: if false;
+    }
+
+    // ── leaveRequests/{id} ──────────────────────────────────────
+    match /leaveRequests/{id} {
+      // อ่าน: เจ้าของใบลาอ่านใบของตัวเองได้ / manager กับ hr อ่านใบของใครก็ได้
+      // -> employee คนอื่นที่ไม่ใช่เจ้าของใบ อ่านไม่ได้เด็ดขาด (กันเห็นใบลาเพื่อนร่วมงาน)
+      allow read: if isSignedIn()
+                  && (resource.data.requesterId == request.auth.uid || isStaff());
+
+      // สร้าง: ผู้ใช้ที่ล็อกอินอยู่ยื่นใบลาให้ตัวเองได้เท่านั้น (requesterId ต้องตรงกับ uid
+      // ของตัวเอง ห้ามยื่นแทนคนอื่น) และ status ตอนสร้างต้องเป็น "รอพิจารณา" เท่านั้น
+      // (ห้ามสร้างใบลาที่อนุมัติ/ไม่อนุมัติไปแล้วตั้งแต่ต้น)
+      allow create: if isSignedIn()
+                    && request.resource.data.requesterId == request.auth.uid
+                    && request.resource.data.status == "รอพิจารณา";
+
+      // แก้ไข: เฉพาะ manager/hr เท่านั้น และแก้ได้แค่ field "status" field เดียว (field อื่น
+      // ทุกตัวต้องมีค่าเท่าเดิมทั้งหมด) โดยสถานะเดิมต้องเป็น "รอพิจารณา" อยู่ก่อน (ยังไม่เคย
+      // ตัดสิน) และสถานะใหม่ต้องเป็น "อนุมัติ" หรือ "ไม่อนุมัติ" เท่านั้น — กันแก้ใบที่ถูก
+      // ตัดสินไปแล้วซ้ำอีก (สถานะที่ตัดสินแล้วถือเป็นสถานะสุดท้าย เปลี่ยนต่อไม่ได้)
+      allow update: if isStaff()
+                    && resource.data.status == "รอพิจารณา"
+                    && request.resource.data.status in ["อนุมัติ", "ไม่อนุมัติ"]
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"]);
+
+      // ลบ: เฉพาะเจ้าของใบลาเอง และลบได้เฉพาะตอนสถานะยังเป็น "รอพิจารณา" อยู่เท่านั้น
+      // (ใบที่ถูกตัดสินแล้วลบไม่ได้ ต้องเก็บเป็นประวัติ)
+      allow delete: if isSignedIn()
+                    && resource.data.requesterId == request.auth.uid
+                    && resource.data.status == "รอพิจารณา";
+
+      // ── leaveRequests/{id}/approvals/{approvalId} ──────────────
+      // สำคัญ: subcollection นี้ไม่ได้รับสิทธิ์ต่อจากเอกสารแม่ (leaveRequests/{id}) โดยอัตโนมัติ
+      // ต้องเขียนกฎแยกต่างหากที่นี่ ถึงจะมีผล
+      match /approvals/{approvalId} {
+        // อ่าน: ใครก็ตามที่มีสิทธิ์อ่านใบลาแม่ได้ (เจ้าของใบ หรือ manager/hr) อ่านความเห็นได้
+        allow read: if isSignedIn()
+                    && (get(/databases/$(database)/documents/leaveRequests/$(id)).data.requesterId == request.auth.uid
+                        || isStaff());
+
+        // สร้าง: เจ้าของใบลาแม่ หรือ manager/hr เขียนความเห็นได้ และ authorId ในความเห็น
+        // ต้องตรงกับ uid ของคนที่ล็อกอินอยู่จริงเสมอ (ห้ามปลอมชื่อคนอื่นเป็นผู้เขียนความเห็น)
+        allow create: if isSignedIn()
+                      && request.resource.data.authorId == request.auth.uid
+                      && (get(/databases/$(database)/documents/leaveRequests/$(id)).data.requesterId == request.auth.uid
+                          || isStaff());
+
+        // แก้ไข/ลบ: ไม่อนุญาตให้ใครทำเลย (ความเห็นที่โพสต์แล้วแก้ไม่ได้ ลบไม่ได้ ตามข้อกำหนด)
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+
+    // ── leaveTypes/{id} ──────────────────────────────────────────
+    match /leaveTypes/{id} {
+      // อ่าน: ใครที่ล็อกอินอยู่ก็อ่านได้หมด (หน้ายื่นใบลาใหม่ต้องใช้ทำ dropdown ประเภทการลา)
+      allow read: if isSignedIn();
+
+      // สร้าง/แก้ไข/ลบ: เฉพาะ hr เท่านั้น (จัดการประเภทการลาเป็นงานของฝ่ายบุคคล)
+      allow create, update, delete: if isHr();
+    }
+
+    // ── ปิดกั้นทุกอย่างที่ไม่ได้ระบุไว้ข้างบนโดยปริยาย (deny by default) ──
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

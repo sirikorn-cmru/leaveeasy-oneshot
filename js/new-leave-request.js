@@ -1,23 +1,53 @@
 // ─────────────────────────────────────────────────────────────
-// js/new-leave-request.js — หน้าที่ 2 ยื่นใบลาใหม่
-// สัปดาห์ที่ 6 (ต้นสัปดาห์): เก็บไว้ในหน่วยความจำของเบราว์เซอร์เท่านั้น
-// ยังไม่บันทึกลงฐานข้อมูล (เป็นงานของสัปดาห์ที่ 7)
+// js/new-leave-request.js — หน้ายื่นใบลาใหม่ (บันทึกลง Cloud Firestore จริง)
 // ─────────────────────────────────────────────────────────────
 
+import { firebaseNotConfigured } from "./firebase.js";
+import { listLeaveTypes, createLeaveRequest, FirebaseNotConfiguredError } from "./db.js";
+import { currentUserProfile } from "./auth.js";
+import { showConfigWarning } from "./nav.js";
+import { hide, show, ข้อความError } from "./util.js";
+
 (function () {
-  var ฟอร์ม = document.getElementById("ฟอร์มใบลา");
+  var ฟอร์ม = document.getElementById("leave-form");
+  if (!ฟอร์ม) return;
+
   var ช่องประเภท = document.getElementById("leaveTypeId");
-  var กล่องเตือน = document.getElementById("ข้อความเตือน");
+  var กล่องเตือน = document.getElementById("form-error");
+  var ปุ่มยกเลิก = document.getElementById("btn-cancel");
+  var ปุ่มบันทึก = document.getElementById("btn-save");
 
-  // เติมรายการเลื่อนลงด้วยประเภทการลาที่มีอยู่
-  window.LEAVE_DATA.leaveTypes.forEach(function (ประเภท) {
-    var ตัวเลือก = document.createElement("option");
-    ตัวเลือก.value = ประเภท.id;
-    ตัวเลือก.textContent = ประเภท.name;
-    ช่องประเภท.appendChild(ตัวเลือก);
-  });
+  init();
 
-  ฟอร์ม.addEventListener("submit", function (e) {
+  async function init() {
+    if (firebaseNotConfigured) {
+      showConfigWarning("หน้ายื่นใบลาใหม่จึงยังบันทึกลงฐานข้อมูลจริงไม่ได้");
+      ตั้งค่าปิดฟอร์ม(true);
+      return;
+    }
+
+    try {
+      var ประเภททั้งหมด = await listLeaveTypes();
+      ประเภททั้งหมด.forEach(function (ประเภท) {
+        var ตัวเลือก = document.createElement("option");
+        ตัวเลือก.value = ประเภท.id;
+        ตัวเลือก.textContent = ประเภท.name;
+        ช่องประเภท.appendChild(ตัวเลือก);
+      });
+    } catch (err) {
+      แสดงข้อผิดพลาด(err, "โหลดประเภทการลาไม่สำเร็จ");
+      return;
+    }
+
+    ฟอร์ม.addEventListener("submit", บันทึกใบลา);
+    if (ปุ่มยกเลิก) {
+      ปุ่มยกเลิก.addEventListener("click", function () {
+        location.href = "leave-requests.html";
+      });
+    }
+  }
+
+  async function บันทึกใบลา(e) {
     e.preventDefault();
 
     var ค่า = {
@@ -28,7 +58,6 @@
       endDate: document.getElementById("endDate").value
     };
 
-    // ตรวจว่ากรอกครบก่อนบันทึก
     if (!ค่า.title || !ค่า.reason || !ค่า.leaveTypeId || !ค่า.startDate || !ค่า.endDate) {
       เตือน("กรอกไม่ครบ — ต้องกรอกทุกช่องก่อนกดบันทึก");
       return;
@@ -37,32 +66,53 @@
       เตือน("วันที่สิ้นสุดต้องไม่มาก่อนวันที่เริ่มลา");
       return;
     }
+    hide(กล่องเตือน);
 
-    var ประเภท = window.LEAVE_DATA.leaveTypes.find(function (t) { return t.id === ค่า.leaveTypeId; });
+    // ผู้ขอลา = ผู้ใช้ที่ล็อกอินอยู่จริงตอนนี้ (js/auth.js) — ไม่ใช้ค่าคงที่แบบต้นแบบเดิมอีกต่อไป
+    var ผู้ขอลาปัจจุบัน = await currentUserProfile();
+    if (!ผู้ขอลาปัจจุบัน) {
+      เตือน("ไม่พบผู้ใช้ที่ล็อกอินอยู่ กรุณาเข้าสู่ระบบใหม่อีกครั้ง");
+      return;
+    }
 
-    // สัปดาห์ที่ 6 ยังไม่มีล็อกอิน จึงสมมติว่าผู้ขอลาคือ สมชาย ใจดี
-    var ใบใหม่ = {
-      id: "lr-ใหม่-" + Date.now(),
-      title: ค่า.title,
-      reason: ค่า.reason,
-      status: "รอพิจารณา",                       // ใบใหม่เริ่มที่ รอพิจารณา เสมอ
-      requesterId: "u001", requesterName: "สมชาย ใจดี",
-      approverId: "",      approverName: "",
-      leaveTypeId: ประเภท.id, leaveTypeName: ประเภท.name,
-      startDate: ค่า.startDate,
-      endDate: ค่า.endDate,
-      createdAt: เวลาตอนนี้()
-    };
+    var ตัวเลือกประเภท = ช่องประเภท.options[ช่องประเภท.selectedIndex];
 
-    var รายการ = JSON.parse(sessionStorage.getItem("ใบลาที่ยื่นใหม่") || "[]");
-    รายการ.push(ใบใหม่);
-    sessionStorage.setItem("ใบลาที่ยื่นใหม่", JSON.stringify(รายการ));
+    if (ปุ่มบันทึก) ปุ่มบันทึก.disabled = true;
+    try {
+      await createLeaveRequest({
+        title: ค่า.title,
+        reason: ค่า.reason,
+        requesterId: ผู้ขอลาปัจจุบัน.uid,
+        requesterName: ผู้ขอลาปัจจุบัน.name,
+        approverId: "",
+        approverName: "",
+        leaveTypeId: ค่า.leaveTypeId,
+        leaveTypeName: ตัวเลือกประเภท ? ตัวเลือกประเภท.textContent : "",
+        startDate: ค่า.startDate,
+        endDate: ค่า.endDate
+        // status และ createdAt ถูกกำหนดให้อัตโนมัติใน js/db.js (createLeaveRequest)
+      });
+      location.href = "leave-requests.html";
+    } catch (err) {
+      if (ปุ่มบันทึก) ปุ่มบันทึก.disabled = false;
+      แสดงข้อผิดพลาด(err, "บันทึกใบลาไม่สำเร็จ");
+    }
+  }
 
-    location.href = "leave-requests.html";
-  });
+  function แสดงข้อผิดพลาด(err, หัวข้อ) {
+    if (err instanceof FirebaseNotConfiguredError) {
+      showConfigWarning();
+      return;
+    }
+    เตือน(หัวข้อ + ": " + ข้อความError(err));
+  }
+
+  function ตั้งค่าปิดฟอร์ม(ปิด) {
+    Array.prototype.forEach.call(ฟอร์ม.elements, function (el) { el.disabled = ปิด; });
+  }
 
   function เตือน(ข้อความ) {
     กล่องเตือน.textContent = "⚠️ " + ข้อความ;
-    กล่องเตือน.classList.remove("hidden");
+    show(กล่องเตือน);
   }
 })();

@@ -1,68 +1,120 @@
 // ─────────────────────────────────────────────────────────────
-// js/leave-types.js — หน้าที่ 4 จัดการประเภทการลา
-// สัปดาห์ที่ 6 (ต้นสัปดาห์): เพิ่ม แก้ ลบ ในหน่วยความจำเท่านั้น
+// js/leave-types.js — หน้าจัดการประเภทการลา (อ่าน/แก้ Cloud Firestore จริง)
 // ─────────────────────────────────────────────────────────────
 
+import { firebaseNotConfigured } from "./firebase.js";
+import {
+  listLeaveTypes, createLeaveType, updateLeaveType, deleteLeaveType, FirebaseNotConfiguredError
+} from "./db.js";
+import { showConfigWarning } from "./nav.js";
+import { esc, hide, show, ข้อความError } from "./util.js";
+
 (function () {
-  var รายการ = window.LEAVE_DATA.leaveTypes.slice();   // ทำสำเนาไว้แก้
-  var ที่วางตาราง = document.getElementById("ตารางประเภท");
-  var ช่องชื่อใหม่ = document.getElementById("ชื่อประเภทใหม่");
-  var กล่องเตือน = document.getElementById("เตือนประเภท");
+  var elBody = document.getElementById("type-list-body");
+  if (!elBody) return;
 
-  วาดตาราง();
-  document.getElementById("ปุ่มเพิ่ม").addEventListener("click", เพิ่มประเภท);
+  var elNameInput = document.getElementById("type-name-input");
+  var btnAdd = document.getElementById("btn-add-type");
+  var elEmpty = document.getElementById("type-empty");
 
-  function วาดตาราง() {
-    if (รายการ.length === 0) {
-      ที่วางตาราง.innerHTML = "<p>ยังไม่มีประเภทการลาในระบบ</p>";
+  var รายการ = [];
+
+  init();
+
+  async function init() {
+    if (firebaseNotConfigured) {
+      showConfigWarning("หน้าจัดการประเภทการลาจึงยังไม่ได้อ่านข้อมูลจริง");
+      if (btnAdd) btnAdd.disabled = true;
       return;
     }
 
-    var html = "<table><thead><tr><th>ชื่อประเภทการลา</th><th>จัดการ</th></tr></thead><tbody>";
-    รายการ.forEach(function (ประเภท) {
-      html +=
-        "<tr><td>" + esc(ประเภท.name) + "</td><td>" +
+    await โหลดใหม่();
+    if (btnAdd) btnAdd.addEventListener("click", เพิ่มประเภท);
+  }
+
+  async function โหลดใหม่() {
+    try {
+      รายการ = await listLeaveTypes();
+      วาดตาราง();
+    } catch (err) {
+      จัดการข้อผิดพลาด(err, "โหลดประเภทการลาไม่สำเร็จ");
+    }
+  }
+
+  function วาดตาราง() {
+    if (รายการ.length === 0) {
+      elBody.innerHTML = "";
+      show(elEmpty);
+      return;
+    }
+    hide(elEmpty);
+
+    elBody.innerHTML = รายการ.map(function (ประเภท) {
+      return "<tr><td>" + esc(ประเภท.name) + "</td><td>" +
         '<button type="button" class="btn-ghost" data-edit="' + esc(ประเภท.id) + '">แก้ไข</button> ' +
         '<button type="button" class="btn-danger" data-del="' + esc(ประเภท.id) + '">ลบ</button>' +
         "</td></tr>";
-    });
-    html += "</tbody></table>";
-    ที่วางตาราง.innerHTML = html;
+    }).join("");
 
-    ที่วางตาราง.querySelectorAll("[data-edit]").forEach(function (ปุ่ม) {
+    elBody.querySelectorAll("[data-edit]").forEach(function (ปุ่ม) {
       ปุ่ม.addEventListener("click", function () { แก้ประเภท(ปุ่ม.dataset.edit); });
     });
-    ที่วางตาราง.querySelectorAll("[data-del]").forEach(function (ปุ่ม) {
+    elBody.querySelectorAll("[data-del]").forEach(function (ปุ่ม) {
       ปุ่ม.addEventListener("click", function () { ลบประเภท(ปุ่ม.dataset.del); });
     });
   }
 
-  function เพิ่มประเภท() {
-    var ชื่อ = ช่องชื่อใหม่.value.trim();
+  async function เพิ่มประเภท() {
+    var ชื่อ = elNameInput.value.trim();
     if (!ชื่อ) {
-      กล่องเตือน.textContent = "⚠️ พิมพ์ชื่อประเภทการลาก่อน จึงจะเพิ่มได้";
-      กล่องเตือน.classList.remove("hidden");
+      alert("พิมพ์ชื่อประเภทการลาก่อน จึงจะเพิ่มได้");
       return;
     }
-    กล่องเตือน.classList.add("hidden");
-    รายการ.push({ id: "lt-ใหม่-" + Date.now(), name: ชื่อ });
-    ช่องชื่อใหม่.value = "";
-    วาดตาราง();
+    btnAdd.disabled = true;
+    try {
+      await createLeaveType(ชื่อ);
+      elNameInput.value = "";
+      await โหลดใหม่();
+    } catch (err) {
+      จัดการข้อผิดพลาด(err, "เพิ่มประเภทการลาไม่สำเร็จ");
+    } finally {
+      btnAdd.disabled = false;
+    }
   }
 
-  function แก้ประเภท(id) {
+  async function แก้ประเภท(id) {
     var ประเภท = รายการ.find(function (t) { return t.id === id; });
+    if (!ประเภท) return;
     var ชื่อใหม่ = prompt("แก้ชื่อประเภทการลา", ประเภท.name);
     if (ชื่อใหม่ === null) return;              // กดยกเลิก
     if (!ชื่อใหม่.trim()) { alert("ชื่อประเภทการลาว่างเปล่าไม่ได้"); return; }
-    ประเภท.name = ชื่อใหม่.trim();
-    วาดตาราง();
+
+    try {
+      await updateLeaveType(id, ชื่อใหม่.trim());
+      await โหลดใหม่();
+    } catch (err) {
+      จัดการข้อผิดพลาด(err, "แก้ไขประเภทการลาไม่สำเร็จ");
+    }
   }
 
-  function ลบประเภท(id) {
+  async function ลบประเภท(id) {
     var ประเภท = รายการ.find(function (t) { return t.id === id; });
+    if (!ประเภท) return;
     if (!confirm('ยืนยันการลบประเภท "' + ประเภท.name + '" หรือไม่')) return;
-    รายการ = รายการ.filter(function (t) { return t.id !== id; });
-    วาดตาราง();
+
+    try {
+      await deleteLeaveType(id);
+      await โหลดใหม่();
+    } catch (err) {
+      จัดการข้อผิดพลาด(err, "ลบประเภทการลาไม่สำเร็จ");
+    }
+  }
+
+  function จัดการข้อผิดพลาด(err, หัวข้อ) {
+    if (err instanceof FirebaseNotConfiguredError) {
+      showConfigWarning();
+      return;
+    }
+    alert(หัวข้อ + ": " + ข้อความError(err));
   }
 })();

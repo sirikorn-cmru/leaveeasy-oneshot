@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ใส่ข้อมูลตัวอย่าง · LeaveEasy</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    /* สไตล์เฉพาะหน้านี้ — ไม่แตะ css/style.css ที่ใช้ร่วมกับหน้าอื่น */
+    #seed-log {
+      background: #0f1720;
+      color: #d7e2ea;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 14px;
+      padding: 14px;
+      border-radius: 8px;
+      min-height: 160px;
+      max-height: 420px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    #seed-log .line-ok { color: #8be29b; }
+    #seed-log .line-err { color: #ff8f85; }
+  </style>
+  <script type="module" src="seed.js"></script>
+</head>
+<body>
+  <header class="navbar">
+    <div class="brand">LeaveEasy</div>
+    <span style="margin-left: auto; font-size: 15px;">🌱 เครื่องมือใส่ข้อมูลตัวอย่าง (สำหรับผู้พัฒนา)</span>
+  </header>
+
+  <div class="container">
+    <h1>ใส่ข้อมูลตัวอย่างลง Firestore</h1>
+    <p class="subtitle">
+      กดปุ่มด้านล่างเพื่อเขียนผู้ใช้ 3 คน ประเภทการลา 3 แบบ ใบขอลา 5 ใบ และความเห็นการอนุมัติ 4 รายการ
+      ลงฐานข้อมูลจริง — ใช้ id ที่ตายตัว (เช่น u001, lr001) จึงกดซ้ำกี่ครั้งก็ได้โดยไม่เกิดข้อมูลซ้ำซ้อน
+    </p>
+
+    <div class="card">
+      <div class="btn-row">
+        <button type="button" id="btn-seed">ใส่ข้อมูลตัวอย่างทั้งหมด</button>
+      </div>
+      <p class="hint">
+        ชื่อคนทุกชื่อในข้อมูลตัวอย่างเป็นชื่อสมมติ และอีเมลทุกตัวเป็นอีเมลตัวอย่าง ไม่ใช่ข้อมูลจริง
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>ผลลัพธ์</h2>
+      <div id="seed-log">ยังไม่ได้เริ่ม — กดปุ่ม "ใส่ข้อมูลตัวอย่างทั้งหมด" ด้านบน</div>
+    </div>
+
+    <div class="btn-row">
+      <a class="btn btn-ghost" href="../dashboard.html">← กลับไปหน้าแดชบอร์ด</a>
+    </div>
+  </div>
+</body>
+</html>

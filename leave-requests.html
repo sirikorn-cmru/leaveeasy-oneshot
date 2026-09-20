@@ -5,24 +5,63 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>รายการใบลา · LeaveEasy</title>
   <link rel="stylesheet" href="css/style.css">
-  <script src="js/util.js" defer></script>
-  <script src="js/nav.js" defer></script>
-  <script src="js/data.js" defer></script>
-  <script src="js/leave-requests.js" defer></script>
+  <script type="module" src="js/nav.js"></script>
+  <script type="module" src="js/leave-requests.js"></script>
 </head>
 <body>
-  <div id="nav"></div>
+  <header class="navbar">
+    <div class="brand">LeaveEasy</div>
+    <a href="index.html">หน้าแรก</a>
+    <a href="leave-requests.html">รายการใบลา</a>
+    <a href="new-leave-request.html">ยื่นใบลาใหม่</a>
+    <a href="leave-types.html">จัดการประเภท</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <div class="nav-user">
+      <span id="nav-user"></span>
+      <button id="btn-logout" hidden>ออกจากระบบ</button>
+      <a id="nav-login" href="login.html">เข้าสู่ระบบ</a>
+    </div>
+  </header>
 
   <div class="container">
     <h1>รายการใบลา</h1>
     <p class="subtitle">ใบขอลาทั้งหมดในระบบ กดที่แถวเพื่อดูรายละเอียด</p>
 
-    <div class="btn-row">
-      <a class="btn" href="new-leave-request.html">+ ยื่นใบลาใหม่</a>
+    <div class="card" style="margin-top:16px">
+      <div class="btn-row">
+        <input id="leave-search" type="text" placeholder="ค้นหาจากหัวข้อ" style="max-width: 250px;">
+        <select id="filter-status">
+          <option value="">ทุกสถานะ</option>
+          <option value="รอพิจารณา">รอพิจารณา</option>
+          <option value="อนุมัติ">อนุมัติ</option>
+          <option value="ไม่อนุมัติ">ไม่อนุมัติ</option>
+        </select>
+        <select id="filter-type">
+          <option value="">ทุกประเภท</option>
+        </select>
+        <button id="btn-sort-toggle">ใหม่ไปเก่า</button>
+        <a class="btn" id="btn-new-leave" href="new-leave-request.html">ยื่นใบลาใหม่</a>
+      </div>
     </div>
 
-    <div id="ผลลัพธ์" class="card" style="margin-top:16px">
-      <p>กำลังโหลดข้อมูล…</p>
+    <div class="card">
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>หัวข้อ</th>
+              <th>ประเภทการลา</th>
+              <th>สถานะ</th>
+              <th>ผู้ขอลา</th>
+              <th>วันที่ลา</th>
+            </tr>
+          </thead>
+          <tbody id="leave-list-body">
+          </tbody>
+        </table>
+      </div>
+      <div id="leave-list-empty" hidden style="text-align: center; padding: 30px;">ยังไม่มีใบขอลาในระบบ</div>
+      <div id="leave-search-empty" hidden style="text-align: center; padding: 30px;">ไม่พบใบขอลาที่ตรงกับคำค้น</div>
     </div>
   </div>
 </body>

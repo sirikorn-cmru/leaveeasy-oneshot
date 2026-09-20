@@ -5,30 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>จัดการประเภทการลา · LeaveEasy</title>
   <link rel="stylesheet" href="css/style.css">
-  <script src="js/util.js" defer></script>
-  <script src="js/nav.js" defer></script>
-  <script src="js/data.js" defer></script>
-  <script src="js/leave-types.js" defer></script>
+  <script type="module" src="js/nav.js"></script>
+  <script type="module" src="js/leave-types.js"></script>
 </head>
 <body>
-  <div id="nav"></div>
+  <header class="navbar">
+    <div class="brand">LeaveEasy</div>
+    <a href="index.html">หน้าแรก</a>
+    <a href="leave-requests.html">รายการใบลา</a>
+    <a href="new-leave-request.html">ยื่นใบลาใหม่</a>
+    <a href="leave-types.html">จัดการประเภท</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <div class="nav-user">
+      <span id="nav-user"></span>
+      <button id="btn-logout" hidden>ออกจากระบบ</button>
+      <a id="nav-login" href="login.html">เข้าสู่ระบบ</a>
+    </div>
+  </header>
 
   <div class="container">
     <h1>จัดการประเภทการลา</h1>
     <p class="subtitle">ประเภทที่เพิ่มที่นี่ จะไปโผล่ในรายการเลื่อนลงของหน้ายื่นใบลาใหม่</p>
 
     <div class="card">
-      <label for="ชื่อประเภทใหม่">เพิ่มประเภทการลาใหม่</label>
-      <input type="text" id="ชื่อประเภทใหม่" placeholder="เช่น ลาคลอด">
-      <div id="เตือนประเภท" class="alert alert-error hidden"></div>
+      <label for="type-name-input">เพิ่มประเภทการลาใหม่</label>
+      <input type="text" id="type-name-input" placeholder="เช่น ลาคลอด">
       <div class="btn-row">
-        <button type="button" id="ปุ่มเพิ่ม">เพิ่มประเภทการลา</button>
+        <button type="button" id="btn-add-type">เพิ่ม</button>
       </div>
     </div>
 
     <div class="card">
       <h2>ประเภทการลาที่มีอยู่</h2>
-      <div id="ตารางประเภท"></div>
+      <div style="overflow-x: auto;">
+        <table>
+          <tbody id="type-list-body">
+          </tbody>
+        </table>
+      </div>
+      <div id="type-empty" hidden style="text-align: center; padding: 30px;">ยังไม่มีประเภทการลาในระบบ</div>
     </div>
   </div>
 </body>

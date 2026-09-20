@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สมัครสมาชิก · LeaveEasy</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/nav.js"></script>
+  <script type="module" src="js/signup.js"></script>
+</head>
+<body>
+  <header class="navbar">
+    <div class="brand">LeaveEasy</div>
+    <a href="index.html">หน้าแรก</a>
+    <a href="leave-requests.html">รายการใบลา</a>
+    <a href="new-leave-request.html">ยื่นใบลาใหม่</a>
+    <a href="leave-types.html">จัดการประเภท</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <div class="nav-user">
+      <span id="nav-user"></span>
+      <button id="btn-logout" hidden>ออกจากระบบ</button>
+      <a id="nav-login" href="login.html">เข้าสู่ระบบ</a>
+    </div>
+  </header>
+
+  <div class="container">
+    <h1>สมัครสมาชิก</h1>
+
+    <div class="card" style="max-width: 400px; margin: 0 auto;">
+      <form id="signup-form">
+        <label for="signup-name">ชื่อ</label>
+        <input type="text" id="signup-name" placeholder="ชื่อจริงของคุณ" required>
+
+        <label for="signup-email">อีเมล</label>
+        <input type="email" id="signup-email" placeholder="user@example.com" required>
+
+        <label for="signup-password">รหัสผ่าน</label>
+        <input type="password" id="signup-password" placeholder="••••••••" required>
+
+        <div id="signup-error" hidden class="alert alert-error"></div>
+
+        <div class="btn-row">
+          <button type="submit" id="btn-signup">สมัครสมาชิก</button>
+        </div>
+      </form>
+
+      <p style="text-align: center; margin-top: 20px;">
+        มีบัญชีอยู่แล้ว? <a href="login.html">เข้าสู่ระบบ</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>

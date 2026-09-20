@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>แดชบอร์ด · LeaveEasy</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/nav.js"></script>
+  <script type="module" src="js/dashboard.js"></script>
+</head>
+<body>
+  <header class="navbar">
+    <div class="brand">LeaveEasy</div>
+    <a href="index.html">หน้าแรก</a>
+    <a href="leave-requests.html">รายการใบลา</a>
+    <a href="new-leave-request.html">ยื่นใบลาใหม่</a>
+    <a href="leave-types.html">จัดการประเภท</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <div class="nav-user">
+      <span id="nav-user"></span>
+      <button id="btn-logout" hidden>ออกจากระบบ</button>
+      <a id="nav-login" href="login.html">เข้าสู่ระบบ</a>
+    </div>
+  </header>
+
+  <div class="container">
+    <h1>แดชบอร์ด</h1>
+    <p class="subtitle">สรุปการลาทั้งระบบ</p>
+
+    <div class="card">
+      <div class="stat-row">
+        <a id="box-pending" class="stat" href="leave-requests.html?status=รอพิจารณา">
+          <div>รอพิจารณา</div>
+          <div class="number"><span id="count-pending">0</span></div>
+        </a>
+        <a id="box-approved" class="stat" href="leave-requests.html?status=อนุมัติ">
+          <div>อนุมัติ</div>
+          <div class="number"><span id="count-approved">0</span></div>
+        </a>
+        <a id="box-rejected" class="stat" href="leave-requests.html?status=ไม่อนุมัติ">
+          <div>ไม่อนุมัติ</div>
+          <div class="number"><span id="count-rejected">0</span></div>
+        </a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>ใบลา 5 รายการล่าสุด</h2>
+      <div id="recent-list"></div>
+    </div>
+  </div>
+</body>
+</html>

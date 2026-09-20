@@ -5,22 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ยื่นใบลาใหม่ · LeaveEasy</title>
   <link rel="stylesheet" href="css/style.css">
-  <script src="js/util.js" defer></script>
-  <script src="js/nav.js" defer></script>
-  <script src="js/data.js" defer></script>
-  <script src="js/new-leave-request.js" defer></script>
+  <script type="module" src="js/nav.js"></script>
+  <script type="module" src="js/new-leave-request.js"></script>
+  <script type="module" src="js/ai.js"></script>
 </head>
 <body>
-  <div id="nav"></div>
+  <header class="navbar">
+    <div class="brand">LeaveEasy</div>
+    <a href="index.html">หน้าแรก</a>
+    <a href="leave-requests.html">รายการใบลา</a>
+    <a href="new-leave-request.html">ยื่นใบลาใหม่</a>
+    <a href="leave-types.html">จัดการประเภท</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <div class="nav-user">
+      <span id="nav-user"></span>
+      <button id="btn-logout" hidden>ออกจากระบบ</button>
+      <a id="nav-login" href="login.html">เข้าสู่ระบบ</a>
+    </div>
+  </header>
 
   <div class="container">
     <h1>ยื่นใบลาใหม่</h1>
     <p class="subtitle">กรอกให้ครบทุกช่อง แล้วกดบันทึก · ใบลาใหม่จะมีสถานะ รอพิจารณา เสมอ</p>
 
     <div class="card">
-      <div id="ข้อความเตือน" class="alert alert-error hidden"></div>
+      <div id="form-error" hidden class="alert alert-error"></div>
+      <div id="ai-hint" hidden class="alert alert-ai">ข้อเสนอจาก AI — โปรดตรวจสอบก่อนยืนยัน</div>
 
-      <form id="ฟอร์มใบลา">
+      <form id="leave-form">
         <label for="title">หัวข้อ</label>
         <input type="text" id="title" placeholder="เช่น ลาพักร้อนไปเที่ยวกับครอบครัว">
 
@@ -39,8 +51,12 @@
         <input type="date" id="endDate">
 
         <div class="btn-row">
-          <button type="submit" id="ปุ่มบันทึก">บันทึก</button>
-          <a class="btn btn-ghost" href="leave-requests.html">ยกเลิก</a>
+          <button type="button" id="btn-ai-classify">ให้ AI ช่วยจัดประเภทการลา</button>
+        </div>
+
+        <div class="btn-row">
+          <button type="submit" id="btn-save">บันทึก</button>
+          <button type="button" id="btn-cancel" class="btn btn-ghost">ยกเลิก</button>
         </div>
       </form>
     </div>

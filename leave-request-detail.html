@@ -40,10 +40,13 @@
     </div>
 
     <div class="card">
+      <!-- ปุ่มทั้งสามเริ่มต้นเป็น disabled ไว้ก่อนเสมอ แล้วให้ js/leave-request-detail.js
+           เปิดให้เฉพาะคนที่มีสิทธิ์จริงตอน render ถ้าไม่ใส่ไว้ ผู้ใช้จะเห็นปุ่มกดได้
+           ชั่วขณะระหว่างที่ข้อมูลยังโหลดไม่เสร็จ หรือตอนโหลดไม่สำเร็จ ทั้งที่ไม่ควรกดได้ -->
       <div class="btn-row">
-        <button id="btn-approve" class="btn btn-ok">อนุมัติ</button>
-        <button id="btn-reject" class="btn btn-danger">ไม่อนุมัติ</button>
-        <button id="btn-delete" class="btn btn-danger">ลบใบลานี้</button>
+        <button id="btn-approve" class="btn btn-ok" disabled>อนุมัติ</button>
+        <button id="btn-reject" class="btn btn-danger" disabled>ไม่อนุมัติ</button>
+        <button id="btn-delete" class="btn btn-danger" disabled>ลบใบลานี้</button>
       </div>
     </div>
 

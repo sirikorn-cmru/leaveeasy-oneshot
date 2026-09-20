@@ -116,6 +116,14 @@ textarea { min-height: 110px; resize: vertical; }
 .alert-error { background: #fdecea; border: 1px solid #f5b3ad; color: #8b1f1a; }
 .alert-ok    { background: #e8f5e9; border: 1px solid #a5d6a7; color: #1b5e34; }
 .alert-ai    { background: #eef4ff; border: 1px solid #b9ccf5; color: #1a3e7a; }
+/* ── ซ่อนด้วย attribute hidden ──
+   ต้องเขียนกฎนี้เอง เพราะกฎอย่าง `button, .btn { display: inline-block }` ด้านบน
+   เป็นสไตล์ของผู้เขียนหน้าเว็บ ซึ่งชนะกฎ [hidden] ของเบราว์เซอร์เสมอ ไม่ว่า
+   specificity จะเป็นเท่าไร ผลคือปุ่มที่สั่ง hidden ไว้จะยังโผล่อยู่
+   (เจอจากการทดสอบ: ปุ่ม "ออกจากระบบ" โผล่ทั้งที่ยังไม่ได้ล็อกอิน)
+   js/util.js ใช้ el.hidden = true/false เป็นตัวซ่อน จึงต้องครอบที่ attribute นี้ */
+[hidden] { display: none !important; }
+
 .hidden { display: none; }
 .hidden-note { color: var(--สีจาง); font-size: 15px; }
 .error { color: #8b1f1a; }

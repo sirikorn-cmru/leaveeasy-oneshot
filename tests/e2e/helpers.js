@@ -6,6 +6,27 @@ const path = require("path");
 
 const รากโปรเจกต์ = path.join(__dirname, "..", "..");
 
+// ── อ่านรหัสผ่านบัญชีทดสอบจาก tests/e2e/.env.local ถ้ามีไฟล์นั้น ──
+// ไฟล์นั้นถูก gitignore ไว้ จึงใส่รหัสผ่านจริงได้โดยไม่หลุดขึ้น Git
+// ค่าที่ตั้งไว้ใน environment อยู่แล้วจะชนะเสมอ ไฟล์นี้เติมให้เฉพาะตัวที่ยังว่าง
+function โหลดEnvLocal() {
+  const ไฟล์ = path.join(__dirname, ".env.local");
+  if (!fs.existsSync(ไฟล์)) return;
+  const ขึ้นบรรทัดใหม่ = String.fromCharCode(10);
+  for (const บรรทัด of fs.readFileSync(ไฟล์, "utf8").split(ขึ้นบรรทัดใหม่)) {
+    const ตัด = บรรทัด.trim();
+    if (!ตัด || ตัด.startsWith("#")) continue;
+    const จุดเท่ากับ = ตัด.indexOf("=");
+    if (จุดเท่ากับ === -1) continue;
+    const คีย์ = ตัด.slice(0, จุดเท่ากับ).trim();
+    let ค่า = ตัด.slice(จุดเท่ากับ + 1).trim();
+    if ((ค่า.startsWith(String.fromCharCode(34)) && ค่า.endsWith(String.fromCharCode(34))) ||
+        (ค่า.startsWith("'") && ค่า.endsWith("'"))) ค่า = ค่า.slice(1, -1);
+    if (!process.env[คีย์]) process.env[คีย์] = ค่า;
+  }
+}
+โหลดEnvLocal();
+
 // ── ตรวจว่าตั้งค่า Firebase จริงแล้วหรือยัง ──────────────────
 // ถ้ายังเป็น placeholder อยู่ ระบบจะล็อกอินไม่ได้เลย เทสต์ทุกข้อจึงรันไม่ได้
 // กรณีนี้ต้อง "ข้ามพร้อมบอกเหตุผล" ไม่ใช่ปล่อยให้ fail มั่ว ๆ จนอ่านไม่ออกว่าติดอะไร
@@ -116,3 +137,45 @@ module.exports = {
   idจากURL,
   อ่านค่าทุกช่อง,
 };
+
+// ─────────────────────────────────────────────────────────────
+// ส่วนเพิ่มสำหรับเทสต์ความปลอดภัย (US-08)
+// ─────────────────────────────────────────────────────────────
+
+// ผู้ขอลา "คนที่สอง" — ต้องเป็น role employee เหมือนกัน ห้ามใช้ manager/hr แทน
+// เพราะ manager/hr เปิดใบลาของทุกคนได้ตามการออกแบบ ใช้ทดสอบข้อนี้ไม่ได้
+บัญชี.employee2 = {
+  email: process.env.E2E_EMPLOYEE2_EMAIL,
+  password: process.env.E2E_EMPLOYEE2_PASSWORD,
+  ป้าย: "ผู้ขอลาคนที่สอง (employee อีกคน)",
+};
+
+// ── ยิงอ่าน Firestore ตรง ๆ โดยไม่ล็อกอิน ────────────────────
+// การที่หน้าเว็บเด้งไป login.html เป็นแค่ยามหน้าประตูฝั่งเบราว์เซอร์ ใครก็ข้ามได้
+// ด่านจริงคือ Firestore Security Rules — ต้องตอบ PERMISSION_DENIED เท่านั้น
+async function อ่านแบบไม่ล็อกอิน(page, เส้นทาง) {
+  return await page.evaluate(async (เส้นทาง) => {
+    const { firebaseConfig } = await import("/js/firebase-config.js");
+    const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/${เส้นทาง}?key=${firebaseConfig.apiKey}&pageSize=1`;
+    const r = await fetch(url);
+    const j = await r.json().catch(() => ({}));
+    return { http: r.status, status: j.error ? j.error.status : "OK", จำนวนเอกสาร: (j.documents || []).length };
+  }, เส้นทาง);
+}
+
+// ── ยิงอ่าน Firestore ด้วยสิทธิ์ของผู้ใช้ที่ล็อกอินอยู่ตอนนี้ ──
+async function อ่านด้วยสิทธิ์ผู้ใช้ปัจจุบัน(page, เส้นทาง) {
+  return await page.evaluate(async (เส้นทาง) => {
+    const { auth } = await import("/js/firebase.js");
+    const { firebaseConfig } = await import("/js/firebase-config.js");
+    if (!auth || !auth.currentUser) return { http: 0, status: "ยังไม่ได้ล็อกอิน" };
+    const token = await auth.currentUser.getIdToken();
+    const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/${เส้นทาง}`;
+    const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+    const j = await r.json().catch(() => ({}));
+    return { http: r.status, status: j.error ? j.error.status : "OK", uid: auth.currentUser.uid };
+  }, เส้นทาง);
+}
+
+module.exports.อ่านแบบไม่ล็อกอิน = อ่านแบบไม่ล็อกอิน;
+module.exports.อ่านด้วยสิทธิ์ผู้ใช้ปัจจุบัน = อ่านด้วยสิทธิ์ผู้ใช้ปัจจุบัน;

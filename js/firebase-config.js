@@ -5,8 +5,8 @@
 // เบราว์เซอร์ใช้เชื่อมต่อโปรเจกต์ ความปลอดภัยจริงถูกควบคุมด้วย Firestore Security
 // Rules (ไฟล์ firestore.rules) ไม่ใช่การซ่อนไฟล์นี้ จึงคอมมิตไฟล์นี้ขึ้น Git ได้ตามปกติ
 //
-// ตอนนี้ยังไม่มีโปรเจกต์ Firebase จริง ค่าด้านล่างจึงเป็นแค่ placeholder
-// ต้องไปสร้างโปรเจกต์ใน Firebase Console แล้วคัดลอกค่าจริงมาแทนที่ทุกช่อง
+// ค่าด้านล่างเป็นค่าจริงของโปรเจกต์ leaveeasy-a24b6 แล้ว
+// ถ้าย้ายไปใช้โปรเจกต์ Firebase อื่น ให้ทำตามวิธีหาค่าด้านล่างแล้วแทนที่ทุกช่อง
 //
 // วิธีหาค่าแต่ละช่อง:
 //   1. เปิด https://console.firebase.google.com แล้วเลือก (หรือสร้าง) โปรเจกต์
@@ -28,10 +28,10 @@
 // ─────────────────────────────────────────────────────────────
 
 export const firebaseConfig = {
-  apiKey: "ใส่ค่าจาก Firebase Console",
-  authDomain: "ใส่ค่าจาก Firebase Console",
-  projectId: "ใส่ค่าจาก Firebase Console",
-  storageBucket: "ใส่ค่าจาก Firebase Console",
-  messagingSenderId: "ใส่ค่าจาก Firebase Console",
-  appId: "ใส่ค่าจาก Firebase Console"
+  apiKey: "AIzaSyBL7UjKdvvyOO3bkQSyEe2zUX5EjXeHsus",
+  authDomain: "leaveeasy-a24b6.firebaseapp.com",
+  projectId: "leaveeasy-a24b6",
+  storageBucket: "leaveeasy-a24b6.firebasestorage.app",
+  messagingSenderId: "153243594129",
+  appId: "1:153243594129:web:3342f743dfa346fac83e30"
 };

@@ -40,3 +40,6 @@ js/ai-config.js
 test-results/
 tests/e2e/.report/
 .playwright-mcp/
+
+# ── รหัสผ่านบัญชีทดสอบ (ห้ามขึ้น Git) ──
+tests/e2e/.env.local

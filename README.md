@@ -1,5 +1,20 @@
 # 🔧 LeaveEasy — จุดเริ่มต้นของใบงาน
 
+## 🔗 ลิงก์ของงานชิ้นนี้
+
+| | ลิงก์ |
+|---|---|
+| 🌐 **เว็บออนไลน์** | https://sirikorn-cmru.github.io/leaveeasy-oneshot/ |
+| 🧪 **ผลการทดสอบอัตโนมัติ** | [tests/test-results.md](tests/test-results.md) |
+| 📋 **เทสต์เคสและวิธีรัน** | [tests/e2e/README.md](tests/e2e/README.md) |
+
+> ⚠️ ลิงก์เว็บออนไลน์ใช้ได้ต่อเมื่อเปิด GitHub Pages แล้ว
+> (Settings → Pages → Source: `Deploy from a branch` → `main` / `/root`)
+> และต้องเพิ่มโดเมน `sirikorn-cmru.github.io` เข้า Firebase Console →
+> Authentication → Settings → Authorized domains ไม่งั้นล็อกอินบนเว็บออนไลน์จะไม่ผ่าน
+
+---
+
 **ADT-RAISE Non-Degree Batch 2 · Module 2: MVP-Ready** (สัปดาห์ที่ 6–9)
 
 นี่คือ **เว็บ prototype ของระบบขอลาออนไลน์** ที่ทุกคนจะใช้เป็นจุดเริ่มต้นในคาบ Workshop บ่ายวันเสาร์

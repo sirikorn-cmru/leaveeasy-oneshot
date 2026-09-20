@@ -8,10 +8,8 @@
 | 🧪 **ผลการทดสอบอัตโนมัติ** | [tests/test-results.md](tests/test-results.md) |
 | 📋 **เทสต์เคสและวิธีรัน** | [tests/e2e/README.md](tests/e2e/README.md) |
 
-> ⚠️ ลิงก์เว็บออนไลน์ใช้ได้ต่อเมื่อเปิด GitHub Pages แล้ว
-> (Settings → Pages → Source: `Deploy from a branch` → `main` / `/root`)
-> และต้องเพิ่มโดเมน `sirikorn-cmru.github.io` เข้า Firebase Console →
-> Authentication → Settings → Authorized domains ไม่งั้นล็อกอินบนเว็บออนไลน์จะไม่ผ่าน
+> 🚀 เว็บ deploy อัตโนมัติทุกครั้งที่ push เข้า `main`
+> ผ่าน [.github/workflows/pages.yml](.github/workflows/pages.yml) — ไม่ต้องตั้งค่าอะไรเพิ่ม
 
 ---
 

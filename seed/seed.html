@@ -38,9 +38,51 @@
     </p>
 
     <div class="card">
+      <h2>1. ระบุ uid จริงของทั้ง 3 บทบาท</h2>
+      <p class="hint">
+        เดิมข้อมูลตัวอย่างใช้รหัสสมมติ <code>u001</code> / <code>u002</code> / <code>u003</code>
+        ซึ่งไม่ตรงกับ uid จริงที่ Firebase Authentication ออกให้ตอนสมัครสมาชิก ทำให้ใบลาที่ seed ไว้
+        ไม่ผูกกับบัญชีใครเลย และเปิดดูไม่ได้เมื่อบังคับใช้ Security Rules
+        <br>ให้สมัครบัญชีจากหน้า <a href="../signup.html">สมัครสมาชิก</a> ก่อน แล้วคัดลอก uid ของแต่ละบัญชีมาวางที่นี่
+        (ดู uid ได้ที่ Firebase Console → Authentication → คอลัมน์ User UID)
+      </p>
+
+      <p class="hint" id="my-uid-line">uid ของบัญชีที่ล็อกอินอยู่ตอนนี้: <strong id="my-uid">— ยังไม่ได้ล็อกอิน —</strong></p>
+
+      <div class="form-row">
+        <label for="uid-employee">uid ของผู้ขอลา (สมชาย ใจดี · <code>employee</code>)</label>
+        <input type="text" id="uid-employee" placeholder="วาง uid ที่นี่">
+      </div>
+      <div class="form-row">
+        <label for="uid-manager">uid ของผู้อนุมัติ (สมหญิง รักงาน · <code>manager</code>)</label>
+        <input type="text" id="uid-manager" placeholder="วาง uid ที่นี่">
+      </div>
+      <div class="form-row">
+        <label for="uid-hr">uid ของฝ่ายบุคคล (สมศรี ตั้งใจ · <code>hr</code>)</label>
+        <input type="text" id="uid-hr" placeholder="วาง uid ที่นี่">
+      </div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-ghost" id="btn-use-my-uid">ใช้ uid ของฉันทั้ง 3 ช่อง</button>
+      </div>
+      <p class="hint">
+        ถ้ามีบัญชีเดียว กดปุ่มด้านบนได้ — ข้อมูลตัวอย่างจะเป็นของคุณคนเดียวทั้งหมด
+        เหมาะกับการลองเล่นคนเดียว แต่จะสาธิตการแบ่งสิทธิ์ 3 บทบาทไม่ได้
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>2. ใส่ข้อมูล</h2>
       <div class="btn-row">
         <button type="button" id="btn-seed">ใส่ข้อมูลตัวอย่างทั้งหมด</button>
       </div>
+      <p class="hint">
+        ⚠️ <strong>ต้องรันตอนที่ Firestore ยังเปิดให้เขียนได้</strong> — เช่นช่วงที่ยังเป็น Test mode
+        หรือก่อนกด Publish กฎจาก <code>firestore.rules</code> ขึ้น Console
+        เพราะกฎชุดนั้น<strong>ตั้งใจห้าม</strong>ไม่ให้ใครสร้างเอกสารผู้ใช้ของคนอื่น
+        สร้างใบลาแทนคนอื่น หรือสร้างใบลาที่อนุมัติแล้วตั้งแต่ต้น ซึ่งเป็นสิ่งที่การ seed ต้องทำทั้งหมด
+        <br>นี่คือพฤติกรรมที่ถูกต้องของกฎ — <strong>อย่าผ่อนกฎเพื่อให้ seed ผ่าน</strong>
+      </p>
       <p class="hint">
         ชื่อคนทุกชื่อในข้อมูลตัวอย่างเป็นชื่อสมมติ และอีเมลทุกตัวเป็นอีเมลตัวอย่าง ไม่ใช่ข้อมูลจริง
       </p>

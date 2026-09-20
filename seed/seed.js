@@ -9,13 +9,19 @@
 // และ createdAt ต้องเป็นวันที่ย้อนหลังตามข้อมูลตัวอย่าง ไม่ใช่เวลาปัจจุบัน
 // ─────────────────────────────────────────────────────────────
 
-import { db, firebaseNotConfigured } from "../js/firebase.js";
+import { db, auth, firebaseNotConfigured } from "../js/firebase.js";
 import { showConfigWarning } from "../js/util.js";   // ห้าม import จาก nav.js — จะไปรัน route guard ใน /seed/ โดยไม่ตั้งใจ
 import {
   doc, setDoc, collection
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // ⚠️ ชื่อคนทุกชื่อเป็นชื่อสมมติ · อีเมลทุกตัวเป็นอีเมลตัวอย่าง
+//
+// รหัส u001/u002/u003 ด้านล่างเป็นเพียง "ชื่อเล่น" ที่ใช้อ้างถึงกันภายในไฟล์นี้เท่านั้น
+// ตอนเขียนลง Firestore จริง ทุกตัวจะถูกแทนด้วย uid จริงจาก Firebase Authentication
+// ที่ผู้ใช้กรอกในหน้า seed.html (ดูฟังก์ชัน uidจริง) — เอกสารผู้ใช้จึงถูกเขียนที่
+// users/{uid จริง} ไม่ใช่ users/u001 ซึ่งไม่ผูกกับบัญชีใครเลยและอ่านไม่ได้เมื่อบังคับใช้ Rules
 
 var users = [
   { id: "u001", name: "สมชาย ใจดี", email: "somchai@example.com", role: "employee" },
@@ -94,6 +100,17 @@ var approvals = [
     message: "ช่วงนั้นทีมมีงานส่งมอบพอดี ขอเลื่อนเป็นสัปดาห์ถัดไปได้ไหมครับ", createdAt: "2026-09-20 15:10" }
 ];
 
+// ตารางแปลงรหัสสมมติ -> uid จริง เติมค่าตอนกดปุ่ม (ดู อ่านUidจากฟอร์ม)
+var ตารางUid = { u001: "", u002: "", u003: "" };
+
+// แปลงรหัสสมมติเป็น uid จริง — ค่าว่าง (เช่น approverId ของ lr003) ให้คงเป็นค่าว่างไว้
+function uidจริง(รหัสเดิม) {
+  if (!รหัสเดิม) return "";
+  var ค่า = ตารางUid[รหัสเดิม];
+  if (!ค่า) throw new Error("ยังไม่ได้ระบุ uid จริงของ " + รหัสเดิม);
+  return ค่า;
+}
+
 // แปลงข้อความ "2026-09-01 09:15" ให้เป็น JS Date (Firestore SDK จะแปลงเป็น Timestamp ให้เองตอนเขียน)
 function เป็นวันที่(ข้อความ) {
   return new Date(String(ข้อความ).replace(" ", "T"));
@@ -102,6 +119,13 @@ function เป็นวันที่(ข้อความ) {
 (function () {
   var btn = document.getElementById("btn-seed");
   var logBox = document.getElementById("seed-log");
+  var inEmployee = document.getElementById("uid-employee");
+  var inManager = document.getElementById("uid-manager");
+  var inHr = document.getElementById("uid-hr");
+  var btnUseMyUid = document.getElementById("btn-use-my-uid");
+  var elMyUid = document.getElementById("my-uid");
+
+  var uidของฉัน = "";
 
   if (firebaseNotConfigured) {
     if (btn) btn.disabled = true;
@@ -111,6 +135,49 @@ function เป็นวันที่(ข้อความ) {
   }
 
   if (btn) btn.addEventListener("click", เริ่มใส่ข้อมูล);
+
+  // แสดง uid ของบัญชีที่ล็อกอินอยู่ เพื่อให้คัดลอกไปวางได้สะดวก (ไม่บังคับให้ล็อกอิน —
+  // ถ้า Firestore ยังเปิดให้เขียนอยู่ จะ seed โดยไม่ล็อกอินก็ได้ แค่ต้องกรอก uid เอง)
+  onAuthStateChanged(auth, function (ผู้ใช้) {
+    uidของฉัน = ผู้ใช้ ? ผู้ใช้.uid : "";
+    if (elMyUid) elMyUid.textContent = uidของฉัน || "— ยังไม่ได้ล็อกอิน —";
+  });
+
+  if (btnUseMyUid) {
+    btnUseMyUid.addEventListener("click", function () {
+      if (!uidของฉัน) {
+        alert("ยังไม่ได้ล็อกอิน จึงยังไม่มี uid ให้ใช้ — เข้าสู่ระบบก่อน หรือวาง uid เองทั้ง 3 ช่อง");
+        return;
+      }
+      if (inEmployee) inEmployee.value = uidของฉัน;
+      if (inManager) inManager.value = uidของฉัน;
+      if (inHr) inHr.value = uidของฉัน;
+    });
+  }
+
+  // อ่าน uid จากฟอร์มลงตารางแปลง คืน true ถ้ากรอกครบ
+  function อ่านUidจากฟอร์ม() {
+    ตารางUid.u001 = inEmployee ? inEmployee.value.trim() : "";
+    ตารางUid.u002 = inManager ? inManager.value.trim() : "";
+    ตารางUid.u003 = inHr ? inHr.value.trim() : "";
+
+    var ขาด = [];
+    if (!ตารางUid.u001) ขาด.push("ผู้ขอลา");
+    if (!ตารางUid.u002) ขาด.push("ผู้อนุมัติ");
+    if (!ตารางUid.u003) ขาด.push("ฝ่ายบุคคล");
+    if (ขาด.length > 0) {
+      เขียนบรรทัด("❌ ยังไม่ได้กรอก uid ของ: " + ขาด.join(" · ") + " — กรอกให้ครบทั้ง 3 ช่องก่อน", "err");
+      return false;
+    }
+
+    var ไม่ซ้ำ = {};
+    ไม่ซ้ำ[ตารางUid.u001] = 1; ไม่ซ้ำ[ตารางUid.u002] = 1; ไม่ซ้ำ[ตารางUid.u003] = 1;
+    if (Object.keys(ไม่ซ้ำ).length < 3) {
+      เขียนบรรทัด("⚠️ uid ซ้ำกัน — เอกสารผู้ใช้จะถูกเขียนทับกัน และบทบาทสุดท้ายที่เขียน (hr) จะชนะ", "err");
+      เขียนบรรทัด("   ใช้ได้ถ้าตั้งใจลองเล่นด้วยบัญชีเดียว แต่จะสาธิตการแบ่งสิทธิ์ 3 บทบาทไม่ได้", "err");
+    }
+    return true;
+  }
 
   function เขียนบรรทัด(ข้อความ, ระดับ) {
     if (!logBox) return;
@@ -127,14 +194,21 @@ function เป็นวันที่(ข้อความ) {
 
   async function เริ่มใส่ข้อมูล() {
     btn.disabled = true;
+    if (logBox) { logBox.textContent = ""; logBox.dataset.started = "1"; }
     เขียนบรรทัด("เริ่มใส่ข้อมูลตัวอย่าง ...");
+
+    if (!อ่านUidจากฟอร์ม()) {
+      btn.disabled = false;
+      return;
+    }
 
     try {
       เขียนบรรทัด("กำลังใส่ผู้ใช้ (users) ...");
       for (var i = 0; i < users.length; i++) {
         var u = users[i];
-        await setDoc(doc(db, "users", u.id), { name: u.name, email: u.email, role: u.role });
-        เขียนบรรทัด("  ✔ users/" + u.id + " — " + u.name, "ok");
+        var uidคนนี้ = uidจริง(u.id);
+        await setDoc(doc(db, "users", uidคนนี้), { name: u.name, email: u.email, role: u.role });
+        เขียนบรรทัด("  ✔ users/" + uidคนนี้ + " — " + u.name + " (" + u.role + ")", "ok");
       }
 
       เขียนบรรทัด("กำลังใส่ประเภทการลา (leaveTypes) ...");
@@ -149,6 +223,8 @@ function เป็นวันที่(ข้อความ) {
         var r = leaveRequests[k];
         var ข้อมูลใบลา = Object.assign({}, r);
         delete ข้อมูลใบลา.id;
+        ข้อมูลใบลา.requesterId = uidจริง(r.requesterId);
+        ข้อมูลใบลา.approverId = uidจริง(r.approverId);   // lr003 ไม่มีผู้อนุมัติ -> คงเป็นค่าว่าง
         ข้อมูลใบลา.createdAt = เป็นวันที่(r.createdAt);
         await setDoc(doc(db, "leaveRequests", r.id), ข้อมูลใบลา);
         เขียนบรรทัด("  ✔ leaveRequests/" + r.id + " — " + r.title, "ok");
@@ -158,7 +234,7 @@ function เป็นวันที่(ข้อความ) {
       for (var m = 0; m < approvals.length; m++) {
         var a = approvals[m];
         var ข้อมูลความเห็น = {
-          authorId: a.authorId,
+          authorId: uidจริง(a.authorId),
           authorName: a.authorName,
           message: a.message,
           createdAt: เป็นวันที่(a.createdAt)
@@ -171,6 +247,8 @@ function เป็นวันที่(ข้อความ) {
     } catch (err) {
       เขียนบรรทัด("❌ เกิดข้อผิดพลาด: " + (err && err.message ? err.message : String(err)), "err");
       เขียนบรรทัด("ตรวจสอบว่าใส่ค่าใน js/firebase-config.js ถูกต้อง และเปิดใช้งาน Firestore แล้วหรือยัง", "err");
+      เขียนบรรทัด("ถ้าขึ้นว่า Missing or insufficient permissions แปลว่ากฎจาก firestore.rules ถูก Publish แล้ว", "err");
+      เขียนบรรทัด("กฎนั้นตั้งใจห้าม seed ข้ามผู้ใช้ — ให้ seed ตอนที่ Firestore ยังเป็น Test mode แทน", "err");
     } finally {
       btn.disabled = false;
     }

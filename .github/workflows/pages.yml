@@ -1,0 +1,55 @@
+# ─────────────────────────────────────────────────────────────
+# เอาเว็บ LeaveEasy ขึ้น GitHub Pages อัตโนมัติทุกครั้งที่ push เข้า main
+#
+# ใช้วิธีนี้แทนการตั้งค่าในหน้า Settings → Pages เพราะขั้นตอน configure-pages
+# ด้านล่างสั่งเปิด Pages ให้เองได้ (enablement: true) ไม่ต้องกด Save เอง
+# ─────────────────────────────────────────────────────────────
+name: Deploy เว็บขึ้น GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:      # กดรันเองได้จากแท็บ Actions
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# ถ้า push ซ้อนกันมา ให้ตัวใหม่ทำงานแทนตัวเก่า
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: เตรียมไฟล์ที่จะขึ้นเว็บ
+        # เอาขึ้นเฉพาะไฟล์ที่เว็บต้องใช้จริง ไม่เอา tests/ node_modules/ .claude/
+        run: |
+          mkdir -p _site
+          cp *.html _site/
+          cp -r css js seed _site/
+          echo "คัดลอกไฟล์ขึ้นเว็บแล้ว:"
+          ls -R _site | head -40
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
